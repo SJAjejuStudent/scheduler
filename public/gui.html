@@ -85,9 +85,7 @@
         <button type="submit">Add Task</button>
       </form>
       <form id="rmForm">
-        <label for="rm">Remove Task:</label>
-        <select id="rm"></select>
-        <button id="rmrf">Remove</button>
+        <button id="rmrf">Reset</button>
       </form>
     </div>
 
@@ -159,48 +157,48 @@
         .getElementById("rmrf")
         .addEventListener("onclick", function (event) {
           event.preventDefault();
-          let taskRm = document.getElementById("taskPriority").value;
-          let taskIndex;
-          for (let i = 0; i < tasks.length; i++) {
-            if (tasks[i].name === taskRm) {
-              taskIndex = i;
-              break;
-            }
-          }
-          tasks.splice(taskIndex, 1);
-          options.splice(options.indexOf(taskRm), 1);
+          window.location.reload();
         });
       document
         .getElementById("taskForm")
         .addEventListener("submit", function (event) {
           event.preventDefault();
-          const taskName = document.getElementById("taskName").value;
+          
+          let taskName = document.getElementById("taskName").value;
           let taskTime = parseInt(document.getElementById("taskTime").value);
           options.push(document.createElement("option"));
           options[options.length - 1].text = taskName;
           deletes.add(options[options.length - 1]);
-          const taskPriority = parseInt(
+          let taskPriority = parseInt(
             document.getElementById("taskPriority").value
           );
-          tasks.push(new TaskValue(taskPriority, taskName));
+          tasks.push(new taskValue(taskPriority, taskName));
+          tasks.sort(function(a,b) {return a.priority-b.priority});
 
           let availableSlots = Array.from(
             document.querySelectorAll("td.available")
           );
+
           availableSlots.sort(
             (a, b) =>
               days.indexOf(a.getAttribute("data-time").split("-")[0]) -
               days.indexOf(b.getAttribute("data-time").split("-")[0])
           );
 
+          availableSlots.forEach(slot => {
+            slot.innerHTML = null;
+          })
+
           let assignedSlots = 0;
-          for (let slot of availableSlots) {
-            if (!slot.innerHTML) {
-              slot.innerHTML = `${taskName} (P${taskPriority})`;
+          for (let task of tasks) {
+            for(let slot of availableSlots) {
+              if (!slot.innerHTML) {
+              slot.innerHTML = `${task.name} (P${task.priority})`;
               slot.classList.add("task");
               assignedSlots++;
               taskTime--;
               if (taskTime <= 0) break;
+              }
             }
           }
           if (taskTime > 0) {
