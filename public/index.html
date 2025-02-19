@@ -1,149 +1,212 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>AI Scheduler</title>
     <style>
-        body { font-family: Arial, sans-serif; text-align: center; background-color: #f4f4f4; }
-        .container { width: 50%; margin: auto; background: white; padding: 20px; border-radius: 10px; box-shadow: 0px 0px 10px gray; }
-        input, select, button { margin: 10px; padding: 8px; width: 80%; }
-        button { background: blue; color: white; border: none; cursor: pointer; }
-        button:hover { background: darkblue; }
-        #scheduleOutput { text-align: left; margin-top: 20px; }
+      body {
+        font-family: Arial, sans-serif;
+        background-color: #f4f4f9;
+        margin: 0;
+        padding: 0;
+      }
+      header {
+        background-color: #4a90e2;
+        color: white;
+        padding: 20px;
+        text-align: center;
+        font-size: 32px;
+        font-weight: bold;
+      }
+      .container {
+        width: 80%;
+        margin: 20px auto;
+        background: white;
+        padding: 20px;
+        border-radius: 10px;
+        box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+      }
+      h2 {
+        text-align: center;
+        color: #333;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        text-align: center;
+      }
+      table,
+      th,
+      td {
+        border: 1px solid #ccc;
+      }
+      th,
+      td {
+        padding: 10px;
+        background: #fff;
+      }
+      th {
+        background: #4a90e2;
+        color: white;
+      }
+      .school-time {
+        background: #f0f0f0;
+        color: #999;
+      }
+      .available {
+        background-color: #a8d0e6;
+        color: #333;
+      }
+      .task {
+        background-color: #ffcc80;
+        font-weight: bold;
+      }
     </style>
-</head>
-<body>
+  </head>
+  <body>
+    <header>AI Scheduler</header>
+    <div class="container">
+      <h2>Add Task</h2>
+      <form id="taskForm">
+        <label>Task Name:</label>
+        <input type="text" id="taskName" required />
+
+        <label>Estimated Time Needed (hours):</label>
+        <input type="number" id="taskTime" min="1" required />
+
+        <label>Priority:</label>
+        <select id="taskPriority" required>
+          <option value="1">High</option>
+          <option value="2">Medium</option>
+          <option value="3">Low</option>
+        </select>
+
+        <button type="submit">Add Task</button>
+      </form>
+      <form id="rmForm">
+        <button id="rmrf">Reset</button>
+      </form>
+    </div>
 
     <div class="container">
-        <h2>AI Study Scheduler</h2>
-       
-        <h3>Add School Subjects</h3>
-        <input type="text" id="subjectName" placeholder="Enter subject">
-        <input type="number" id="subjectPriority" placeholder="Priority (1=Most Important)">
-        <button onclick="addSubject()">Add Subject</button>
-
-        <h3>Add Assignment</h3>
-        <input type="text" id="assignmentName" placeholder="Enter assignment">
-        <input type="date" id="dueDate">
-        <select id="assignmentType">
-            <option value="summative">Summative</option>
-            <option value="formative">Formative</option>
-        </select>
-        <select id="assignmentSubject"></select>
-        <button onclick="addAssignment()">Add Assignment</button>
-
-        <h3>Add Extracurricular</h3>
-        <input type="text" id="extraName" placeholder="Enter extracurricular">
-        <input type="date" id="extraDueDate">
-        <button onclick="addExtra()">Add Extracurricular</button>
-
-        <h3>Generated Schedule</h3>
-        <button onclick="generateSchedule()">Generate</button>
-        <div id="scheduleOutput"></div>
+      <h2>Weekly Schedule</h2>
+      <table id="scheduleTable">
+        <thead>
+          <tr>
+            <th>Time</th>
+            <th>Monday</th>
+            <th>Tuesday</th>
+            <th>Wednesday</th>
+            <th>Thursday</th>
+            <th>Friday</th>
+            <th>Saturday</th>
+            <th>Sunday</th>
+          </tr>
+        </thead>
+        <tbody id="scheduleBody"></tbody>
+      </table>
     </div>
 
     <script>
-        let subjects = [];
-        let assignments = [];
-        let extras = [];
-
-        function addSubject() {
-            let name = document.getElementById("subjectName").value.trim();
-            let priority = parseInt(document.getElementById("subjectPriority").value);
-
-            if (!name || isNaN(priority)) {
-                alert("Please enter a valid subject and priority.");
-                return;
-            }
-
-            // Prevent duplicates
-            if (subjects.some(s => s.name.toLowerCase() === name.toLowerCase())) {
-                alert("Subject already exists!");
-                return;
-            }
-
-            subjects.push({ name, priority });
-
-            let subjectDropdown = document.getElementById("assignmentSubject");
-            let option = document.createElement("option");
-            option.value = name;
-            option.textContent = name;
-            subjectDropdown.appendChild(option);
+      const deletes = document.getElementById("rm");
+      const scheduleBody = document.getElementById("scheduleBody");
+      const startTime = 7;
+      const endTime = 23;
+      const schoolHours = {
+        Monday: [8.25, 15.5],
+        Tuesday: [8.25, 15.5],
+        Wednesday: [10.25, 15.5],
+        Thursday: [8.25, 15.5],
+        Friday: [8.25, 15.5],
+      };
+      const days = [
+        "Monday",
+        "Tuesday",
+        "Wednesday",
+        "Thursday",
+        "Friday",
+        "Saturday",
+        "Sunday",
+      ];
+      let tasks = [];
+      let options = [];
+      class taskValue {
+        constructor(priority, name) {
+          this.priority = priority;
+          this.name = name;
         }
+      }
+      for (let hour = startTime; hour < endTime; hour++) {
+        let row = `<tr><td>${hour}:00 - ${hour + 1}:00</td>`;
+        days.forEach((day) => {
+          if (
+            schoolHours[day] &&
+            hour >= schoolHours[day][0] &&
+            hour < schoolHours[day][1]
+          ) {
+            row += `<td class="school-time">School</td>`;
+          } else {
+            row += `<td class="available" data-time="${day}-${hour}"></td>`;
+          }
+        });
+        row += "</tr>";
+        scheduleBody.innerHTML += row;
+      }
+      document
+        .getElementById("rmrf")
+        .addEventListener("onclick", function (event) {
+          event.preventDefault();
+          window.location.reload();
+        });
+      document
+        .getElementById("taskForm")
+        .addEventListener("submit", function (event) {
+          event.preventDefault();
+          
+          let taskName = document.getElementById("taskName").value;
+          let taskTime = parseInt(document.getElementById("taskTime").value);
+          options.push(document.createElement("option"));
+          options[options.length - 1].text = taskName;
+          deletes.add(options[options.length - 1]);
+          let taskPriority = parseInt(
+            document.getElementById("taskPriority").value
+          );
+          tasks.push(new taskValue(taskPriority, taskName));
+          tasks.sort(function(a,b) {return a.priority-b.priority});
 
-        function addAssignment() {
-            let name = document.getElementById("assignmentName").value.trim();
-            let dueDate = new Date(document.getElementById("dueDate").value);
-            let type = document.getElementById("assignmentType").value;
-            let subject = document.getElementById("assignmentSubject").value;
-            let subjectPriority = subjects.find(s => s.name === subject)?.priority || 10;
-           
-            if (!name || !dueDate || !subject) {
-                alert("Please enter valid assignment details.");
-                return;
+          let availableSlots = Array.from(
+            document.querySelectorAll("td.available")
+          );
+
+          availableSlots.sort(
+            (a, b) =>
+              days.indexOf(a.getAttribute("data-time").split("-")[0]) -
+              days.indexOf(b.getAttribute("data-time").split("-")[0])
+          );
+
+          availableSlots.forEach(slot => {
+            slot.innerHTML = null;
+          })
+
+          let assignedSlots = 0;
+          for (let task of tasks) {
+            for(let slot of availableSlots) {
+              if (!slot.innerHTML) {
+              slot.innerHTML = `${task.name} (P${task.priority})`;
+              slot.classList.add("task");
+              assignedSlots++;
+              taskTime--;
+              if (taskTime <= 0) break;
+              }
             }
-
-            assignments.push({ name, dueDate, type, subject, subjectPriority });
-        }
-
-        function addExtra() {
-            let name = document.getElementById("extraName").value.trim();
-            let dueDate = new Date(document.getElementById("extraDueDate").value);
-
-            if (!name || !dueDate) {
-                alert("Please enter a valid extracurricular activity.");
-                return;
-            }
-
-            // Prevent duplicates
-            if (extras.some(e => e.name.toLowerCase() === name.toLowerCase())) {
-                alert("Extracurricular activity already exists!");
-                return;
-            }
-
-            extras.push({ name, dueDate });
-        }
-
-        function generateSchedule() {
-            let today = new Date();
-            let twoWeeks = 14 * 24 * 60 * 60 * 1000;
-            let threeDays = 3 * 24 * 60 * 60 * 1000;
-
-            assignments.sort((a, b) => {
-                let aTimeLeft = a.dueDate - today;
-                let bTimeLeft = b.dueDate - today;
-
-                // Prioritize summative unless it's more than 2 weeks away
-                if (a.type === "summative" && b.type !== "summative" && aTimeLeft < twoWeeks) return -1;
-                if (b.type === "summative" && a.type !== "summative" && bTimeLeft < twoWeeks) return 1;
-
-                // Prioritize assignments with less than 3 days left
-                if (aTimeLeft < threeDays && bTimeLeft >= threeDays) return -1;
-                if (bTimeLeft < threeDays && aTimeLeft >= threeDays) return 1;
-
-                // Sort by user-defined priority
-                if (a.subjectPriority !== b.subjectPriority) return a.subjectPriority - b.subjectPriority;
-
-                // If same priority, sort by due date
-                return aTimeLeft - bTimeLeft;
-            });
-
-            let output = "<h3>Final Schedule</h3><ul>";
-
-            assignments.forEach(a => {
-                output += `<li><b>${a.name}</b> (${a.type}) - ${a.subject} (Due: ${a.dueDate.toDateString()})</li>`;
-            });
-
-            extras.forEach(e => {
-                output += `<li><b>${e.name}</b> (Extracurricular) - (Due: ${e.dueDate.toDateString()})</li>`;
-            });
-
-            output += "</ul>";
-            document.getElementById("scheduleOutput").innerHTML = output;
-            
-        }
+          }
+          if (taskTime > 0) {
+            alert(
+              "Not enough available time slots. Some parts of the task couldn't be scheduled."
+            );
+          }
+        });
     </script>
-
-</body>
+  </body>
 </html>
